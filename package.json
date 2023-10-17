@@ -98,7 +98,9 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "@swc/core": true
+      "@swc/core": true,
+      "ethereumjs-util>ethereum-cryptography>keccak": false,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": false
     }
   }
 }
