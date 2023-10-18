@@ -1,12 +1,14 @@
-import "eth-sig-util";
+// eslint-disable-next-line import/no-unassigned-import
+import '@metamask/eth-sig-util';
 
-declare module "eth-sig-util" {
-  interface MessageTypeProperty {
+declare module 'eth-sig-util' {
+  type MessageTypeProperty = {
     name: string;
     type: string;
-  }
-  interface MessageTypes {
+  };
+  type MessageTypes = {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     EIP712Domain: MessageTypeProperty[];
     [additionalProperties: string]: MessageTypeProperty[];
-  }
+  };
 }

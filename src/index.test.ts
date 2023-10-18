@@ -1,9 +1,11 @@
-import Transport from '@ledgerhq/hw-transport';
 import { FeeMarketEIP1559Transaction } from '@ethereumjs/tx';
-import LedgerKeyring, { EthereumApp } from './index';
+import Transport from '@ledgerhq/hw-transport';
+
+import type { EthereumApp } from '.';
+import LedgerKeyring from '.';
 
 jest.mock('@ledgerhq/hw-app-eth/lib/services/ledger', () => ({
-  resolveTransaction: () =>
+  resolveTransaction: async () =>
     Promise.resolve({
       erc20Tokens: [],
       nfts: [],
@@ -13,29 +15,29 @@ jest.mock('@ledgerhq/hw-app-eth/lib/services/ledger', () => ({
 }));
 
 const createMockApp = (props: Partial<EthereumApp>): EthereumApp => {
-  const mockApp = {
-    getAddress: jest.fn(() =>
+  return {
+    getAddress: jest.fn(async () =>
       Promise.resolve({
         address: '0xCbA98362e199c41E1864D0923AF9646d3A648451',
         publicKey:
           '04df00ad3869baad7ce54f4d560ba7f268d542df8f2679a5898d78a690c3db8f9833d2973671cb14b088e91bdf7c0ab00029a576473c0e12f84d252e630bb3809b',
       }),
     ),
-    signTransaction: jest.fn(() =>
+    signTransaction: jest.fn(async () =>
       Promise.resolve({
         s: '0x1',
         v: '0x2',
         r: '0x3',
       }),
     ),
-    signPersonalMessage: jest.fn(() =>
+    signPersonalMessage: jest.fn(async () =>
       Promise.resolve({
         s: '0x1',
         v: 2,
         r: '0x3',
       }),
     ),
-    signEIP712HashedMessage: jest.fn(() =>
+    signEIP712HashedMessage: jest.fn(async () =>
       Promise.resolve({
         s: '0x1',
         v: 2,
@@ -44,23 +46,21 @@ const createMockApp = (props: Partial<EthereumApp>): EthereumApp => {
     ),
     ...props,
   };
-
-  return mockApp;
 };
 
 describe('serialization', () => {
-  test('type field is statically assigned', () => {
+  it('type field is statically assigned', () => {
     const keyring = new LedgerKeyring();
 
     expect(keyring.type).toBe('Ledger Hardware');
     expect(LedgerKeyring.type).toBe('Ledger Hardware');
   });
 
-  test('successfully serializes state for default values', async () => {
+  it('successfully serializes state for default values', async () => {
     const keyring = new LedgerKeyring();
     const serialized = await keyring.serialize();
 
-    expect(serialized).toEqual({
+    expect(serialized).toStrictEqual({
       hdPath: "m/44'/60'/0'/0/0",
       accounts: [],
       deviceId: '',
@@ -68,7 +68,7 @@ describe('serialization', () => {
     });
   });
 
-  test('successfully serializes state for provided values', async () => {
+  it('successfully serializes state for provided values', async () => {
     const keyring = new LedgerKeyring({
       hdPath: "m/44'/60'/0'/0/0",
       accounts: ['0x1', '0x2'],
@@ -88,7 +88,7 @@ describe('serialization', () => {
 
     const serialized = await keyring.serialize();
 
-    expect(serialized).toEqual({
+    expect(serialized).toStrictEqual({
       hdPath: "m/44'/60'/0'/0/0",
       accounts: ['0x1', '0x2'],
       deviceId: 'device_1',
@@ -105,7 +105,7 @@ describe('serialization', () => {
     });
   });
 
-  test('successfully de-serializes state', async () => {
+  it('successfully de-serializes state', async () => {
     const keyring = new LedgerKeyring();
 
     await keyring.deserialize({
@@ -126,7 +126,7 @@ describe('serialization', () => {
 
     const serialized = await keyring.serialize();
 
-    expect(serialized).toEqual({
+    expect(serialized).toStrictEqual({
       hdPath: "m/44'/60'/0'/0/0",
       accounts: ['0x1', '0x2'],
       deviceId: 'device_1',
@@ -143,14 +143,14 @@ describe('serialization', () => {
     });
   });
 
-  test('successfully de-serializes state with no state provided', async () => {
+  it('successfully de-serializes state with no state provided', async () => {
     const keyring = new LedgerKeyring();
 
     await keyring.deserialize({});
 
     const serialized = await keyring.serialize();
 
-    expect(serialized).toEqual({
+    expect(serialized).toStrictEqual({
       hdPath: "m/44'/60'/0'/0/0",
       accounts: [],
       deviceId: '',
@@ -160,15 +160,15 @@ describe('serialization', () => {
 });
 
 describe('accounts', () => {
-  test('successfully returns accounts', async () => {
+  it('successfully returns accounts', async () => {
     const keyring = new LedgerKeyring();
 
     const accounts = await keyring.getAccounts();
 
-    expect(accounts).toEqual([]);
+    expect(accounts).toStrictEqual([]);
   });
 
-  test('successfuly returns accounts from restored state', async () => {
+  it('successfuly returns accounts from restored state', async () => {
     const keyring = new LedgerKeyring();
 
     await keyring.deserialize({
@@ -189,14 +189,14 @@ describe('accounts', () => {
 
     const accounts = await keyring.getAccounts();
 
-    expect(accounts).toEqual(['0x1', '0x2']);
+    expect(accounts).toStrictEqual(['0x1', '0x2']);
   });
 
-  test('adds an account to the state', async () => {
+  it('adds an account to the state', async () => {
     const keyring = new LedgerKeyring();
 
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0xCbA98362e199c41E1864D0923AF9646d3A648451',
           publicKey:
@@ -210,14 +210,14 @@ describe('accounts', () => {
     const accounts = await keyring.addAccounts(1);
 
     expect(accounts).toHaveLength(1);
-    expect(accounts[0]).toEqual('0xCbA98362e199c41E1864D0923AF9646d3A648451');
+    expect(accounts[0]).toBe('0xCbA98362e199c41E1864D0923AF9646d3A648451');
   });
 
-  test('throws when trying to add multiple accounts', async () => {
+  it('throws when trying to add multiple accounts', async () => {
     const keyring = new LedgerKeyring();
 
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0xCbA98362e199c41E1864D0923AF9646d3A648451',
           publicKey:
@@ -233,11 +233,11 @@ describe('accounts', () => {
     );
   });
 
-  test('throw when trying to add another account', async () => {
+  it('throw when trying to add another account', async () => {
     const keyring = new LedgerKeyring();
 
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0xCbA98362e199c41E1864D0923AF9646d3A648451',
           publicKey:
@@ -253,14 +253,16 @@ describe('accounts', () => {
     // Adding repeatedly an account
     const result = await keyring.addAccounts(1);
 
-    expect(result).toEqual(['0xCbA98362e199c41E1864D0923AF9646d3A648451']);
+    expect(result).toStrictEqual([
+      '0xCbA98362e199c41E1864D0923AF9646d3A648451',
+    ]);
   });
 
-  test('retrieve the default account', async () => {
+  it('retrieve the default account', async () => {
     const keyring = new LedgerKeyring();
 
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0xCbA98362e199c41E1864D0923AF9646d3A648451',
           publicKey:
@@ -273,16 +275,16 @@ describe('accounts', () => {
 
     const account = await keyring.getDefaultAccount();
 
-    expect(account).toEqual('0xCbA98362e199c41E1864D0923AF9646d3A648451');
+    expect(account).toBe('0xCbA98362e199c41E1864D0923AF9646d3A648451');
   });
 });
 
 describe('unlock', () => {
-  test("returns account's address successfully based on HD Path", async () => {
+  it("returns account's address successfully based on HD Path", async () => {
     const keyring = new LedgerKeyring();
 
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0xCbA98362e199c41E1864D0923AF9646d3A648451',
           publicKey:
@@ -295,10 +297,10 @@ describe('unlock', () => {
 
     const address = await keyring.unlock("m/44'/60'/0'/0/0");
 
-    expect(address).toEqual('0xCbA98362e199c41E1864D0923AF9646d3A648451');
+    expect(address).toBe('0xCbA98362e199c41E1864D0923AF9646d3A648451');
   });
 
-  test('throws error if app is not initialized', async () => {
+  it('throws error if app is not initialized', async () => {
     const keyring = new LedgerKeyring();
 
     await expect(keyring.unlock("m/44'/60'/0'/0/0")).rejects.toThrow(
@@ -308,18 +310,18 @@ describe('unlock', () => {
 });
 
 describe('signTransaction', () => {
-  test('should sign transaction successfully', async () => {
+  it('should sign transaction successfully', async () => {
     const keyring = new LedgerKeyring();
 
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0xCbA98362e199c41E1864D0923AF9646d3A648451',
           publicKey:
             '04df00ad3869baad7ce54f4d560ba7f268d542df8f2679a5898d78a690c3db8f9833d2973671cb14b088e91bdf7c0ab00029a576473c0e12f84d252e630bb3809b',
         }),
       ),
-      signTransaction: jest.fn(() =>
+      signTransaction: jest.fn(async () =>
         Promise.resolve({
           v: '0x01',
           r: '0xafb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9',
@@ -367,7 +369,7 @@ describe('signTransaction', () => {
       v: signedTx.v?.toString('hex'),
       r: signedTx.r?.toString('hex'),
       s: signedTx.s?.toString('hex'),
-    }).toEqual({
+    }).toStrictEqual({
       v: '1',
       r: 'afb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9',
       s: '479a268e0e0acd4de3f1e28e4fac2a6b32a4195e8dfa9d19147abe8807aa6f64',
@@ -376,18 +378,18 @@ describe('signTransaction', () => {
 });
 
 describe('signMessage', () => {
-  test('should sign a message successfully', async () => {
+  it('should sign a message successfully', async () => {
     const keyring = new LedgerKeyring();
 
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0x9E10EFFa844D7399cdc555613B23a8499e04E386',
           publicKey:
             '04df00ad3869baad7ce54f4d560ba7f268d542df8f2679a5898d78a690c3db8f9833d2973671cb14b088e91bdf7c0ab00029a576473c0e12f84d252e630bb3809b',
         }),
       ),
-      signPersonalMessage: jest.fn(() =>
+      signPersonalMessage: jest.fn(async () =>
         Promise.resolve({
           v: 27,
           r: 'afb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9',
@@ -415,24 +417,24 @@ describe('signMessage', () => {
       Buffer.from('Sign Personal Message Test').toString('hex'),
     );
 
-    expect(signature).toEqual(
+    expect(signature).toBe(
       '0xafb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9479a268e0e0acd4de3f1e28e4fac2a6b32a4195e8dfa9d19147abe8807aa6f6400',
     );
   });
 });
 
 describe('signTypedData', () => {
-  test('signs a v4 typed message successfully', async () => {
+  it('signs a v4 typed message successfully', async () => {
     const keyring = new LedgerKeyring();
     const mockApp = createMockApp({
-      getAddress: jest.fn(() =>
+      getAddress: jest.fn(async () =>
         Promise.resolve({
           address: '0xE908e4378431418759b4F87b4bf7966e8aAa5Cf2',
           publicKey:
             '04df00ad3869baad7ce54f4d560ba7f268d542df8f2679a5898d78a690c3db8f9833d2973671cb14b088e91bdf7c0ab00029a576473c0e12f84d252e630bb3809b',
         }),
       ),
-      signEIP712HashedMessage: jest.fn(() =>
+      signEIP712HashedMessage: jest.fn(async () =>
         Promise.resolve({
           v: 27,
           r: 'afb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9',
@@ -511,14 +513,14 @@ describe('signTypedData', () => {
       { version: 'V4' },
     );
 
-    expect(signature).toEqual(
+    expect(signature).toBe(
       '0xafb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9479a268e0e0acd4de3f1e28e4fac2a6b32a4195e8dfa9d19147abe8807aa6f6400',
     );
   });
 });
 
 describe('forgetDevice', () => {
-  test('sets empty account after forget device', async () => {
+  it('sets empty account after forget device', async () => {
     const keyring = new LedgerKeyring();
 
     await keyring.deserialize({
@@ -540,12 +542,12 @@ describe('forgetDevice', () => {
     keyring.forgetDevice();
     const accounts = await keyring.getAccounts();
 
-    expect(accounts).toEqual([]);
+    expect(accounts).toStrictEqual([]);
   });
 });
 
 describe('setTransport', () => {
-  test('throws if deviceId mismatches', () => {
+  it('throws if deviceId mismatches', () => {
     const keyring = new LedgerKeyring({
       deviceId: 'device_1',
     });
@@ -557,7 +559,7 @@ describe('setTransport', () => {
     );
   });
 
-  test('sets the transport without errors', () => {
+  it('sets the transport without errors', () => {
     const deviceId = 'device_1';
     const keyring = new LedgerKeyring({ deviceId });
 
@@ -568,25 +570,25 @@ describe('setTransport', () => {
 });
 
 describe('openEthApp', () => {
-  test('throws if there is no transport set', () => {
+  it('throws if there is no transport set', () => {
     const keyring = new LedgerKeyring();
 
-    expect(() => keyring.openEthApp()).toThrow(
+    expect(async () => keyring.openEthApp()).toThrow(
       'Ledger transport is not initialized. You must call setTransport first.',
     );
   });
 
-  test('opens eth app', async () => {
+  it('opens eth app', async () => {
     const deviceId = 'device_1';
     const keyring = new LedgerKeyring({ deviceId });
 
-    const sendFn = jest.fn(() => Promise.resolve(Buffer.from([])));
+    const sendFn = jest.fn(async () => Promise.resolve(Buffer.from([])));
     const transport = new Transport();
     transport.send = sendFn;
     keyring.setTransport(transport, deviceId);
     await keyring.openEthApp();
 
-    expect(sendFn).toBeCalledWith(
+    expect(sendFn).toHaveBeenCalledWith(
       0xe0,
       0xd8,
       0x00,
@@ -597,24 +599,24 @@ describe('openEthApp', () => {
 });
 
 describe('quitApp', () => {
-  test('throws if there is no transport set', () => {
+  it('throws if there is no transport set', () => {
     const keyring = new LedgerKeyring();
 
-    expect(() => keyring.quitApp()).toThrow(
+    expect(async () => keyring.quitApp()).toThrow(
       'Ledger transport is not initialized. You must call setTransport first.',
     );
   });
 
-  test('quits app', async () => {
+  it('quits app', async () => {
     const deviceId = 'device_1';
     const keyring = new LedgerKeyring({ deviceId });
 
-    const sendFn = jest.fn(() => Promise.resolve(Buffer.from([])));
+    const sendFn = jest.fn(async () => Promise.resolve(Buffer.from([])));
     const transport = new Transport();
     transport.send = sendFn;
     keyring.setTransport(transport, deviceId);
     await keyring.quitApp();
 
-    expect(sendFn).toBeCalledWith(0xb0, 0xa7, 0x00, 0x00);
+    expect(sendFn).toHaveBeenCalledWith(0xb0, 0xa7, 0x00, 0x00);
   });
 });

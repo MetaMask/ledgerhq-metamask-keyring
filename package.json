@@ -1,7 +1,7 @@
 {
   "name": "@metamask/ledgerhq-metamask-keyring",
   "version": "0.0.1",
-  "description": "A Metamask keyring implementation to bridge wallet operatations with Ledger Nano devices.",
+  "description": "A Metamask keyring implementation to bridge wallet operations with Ledger Nano devices",
   "homepage": "https://github.com/MetaMask/metamask-module-template#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/metamask-module-template/issues"
@@ -36,6 +36,7 @@
     "build:esm:package": "echo >dist/esm/package.json \"{\\\"type\\\":\\\"module\\\"}\"",
     "build:source": "yarn build:esm && yarn build:cjs",
     "build:types": "tsc --project tsconfig.build.json",
+    "format:fix": "npx prettier --write .",
     "lint": "yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
     "lint:changelog": "auto-changelog validate",
     "lint:constraints": "yarn constraints",
@@ -46,6 +47,13 @@
     "prepack": "./scripts/prepack.sh",
     "test": "jest && jest-it-up",
     "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@ethereumjs/tx": "^3.5.0",
+    "@ledgerhq/hw-app-eth": "6.26.1",
+    "@ledgerhq/hw-transport": "^6.28.8",
+    "@metamask/eth-sig-util": "^7.0.0",
+    "ethereumjs-util": "^7.1.5"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
@@ -61,6 +69,10 @@
     "@types/node": "^16",
     "@typescript-eslint/eslint-plugin": "^5.43.0",
     "@typescript-eslint/parser": "^5.43.0",
+    "@yarnpkg/cli": "^4.0.0-rc.53",
+    "@yarnpkg/core": "^4.0.0-rc.53",
+    "@yarnpkg/fslib": "^3.0.0-rc.53",
+    "clipanion": "^4.0.0-rc.2",
     "depcheck": "^1.4.3",
     "eslint": "^8.44.0",
     "eslint-config-prettier": "^8.8.0",
@@ -80,13 +92,6 @@
     "typedoc": "^0.23.15",
     "typescript": "~4.8.4"
   },
-  "dependencies": {
-    "@ethereumjs/tx": "^3.5.0",
-    "@ledgerhq/hw-app-eth": "6.26.1",
-    "@metamask/eth-sig-util": "^7.0.0",
-    "buffer": "^6.0.3",
-    "ethereumjs-util": "^7.1.5"
-  },
   "packageManager": "yarn@3.2.1",
   "engines": {
     "node": ">=16.0.0"
@@ -98,7 +103,9 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "@swc/core": true
+      "@swc/core": true,
+      "ethereumjs-util>ethereum-cryptography>keccak": false,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": false
     }
   }
 }
