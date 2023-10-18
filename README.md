@@ -42,7 +42,6 @@ const address = ...;
 const signedTx = await keyringController.signTransaction(address, tx);
 ```
 
-
 ## Installation
 
 `yarn add @metamask/this-module`

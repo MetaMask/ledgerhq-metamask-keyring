@@ -36,6 +36,7 @@
     "build:esm:package": "echo >dist/esm/package.json \"{\\\"type\\\":\\\"module\\\"}\"",
     "build:source": "yarn build:esm && yarn build:cjs",
     "build:types": "tsc --project tsconfig.build.json",
+    "format:fix": "npx prettier --write .",
     "lint": "yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
     "lint:changelog": "auto-changelog validate",
     "lint:constraints": "yarn constraints",
