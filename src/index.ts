@@ -1,20 +1,20 @@
+/* eslint-disable no-plusplus*/
+import type { TypedTransaction } from '@ethereumjs/tx';
+import { TransactionFactory } from '@ethereumjs/tx';
 import AppEth from '@ledgerhq/hw-app-eth';
-import type Transport from '@ledgerhq/hw-transport';
 import ledgerService from '@ledgerhq/hw-app-eth/lib/services/ledger';
-import { LedgerEthTransactionResolution } from '@ledgerhq/hw-app-eth/lib/services/types';
-import * as ethUtil from 'ethereumjs-util';
-import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
+import type { LedgerEthTransactionResolution } from '@ledgerhq/hw-app-eth/lib/services/types';
+import type Transport from '@ledgerhq/hw-transport';
+import type { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import {
-  MessageTypes,
   recoverPersonalSignature,
   recoverTypedSignature,
-  TypedDataUtils,
-  TypedMessage,
   SignTypedDataVersion,
+  TypedDataUtils,
 } from '@metamask/eth-sig-util';
-
-// eslint-disable-next-line
+// eslint-disable-next-line import/no-nodejs-modules
 import { Buffer } from 'buffer';
+import * as ethUtil from 'ethereumjs-util';
 
 const hdPathString = `m/44'/60'/0'/0/0`;
 const type = 'Ledger Hardware';
@@ -31,7 +31,7 @@ export type SerializationOptions = {
   accountDetails?: Record<string, AccountDetails>;
 };
 
-export interface EthereumApp {
+export type EthereumApp = {
   getAddress(
     path: string,
     boolDisplay?: boolean,
@@ -70,7 +70,7 @@ export interface EthereumApp {
     s: string;
     r: string;
   }>;
-}
+};
 export default class LedgerKeyring {
   public static readonly type = type;
 
@@ -80,38 +80,39 @@ export default class LedgerKeyring {
 
   public accounts: string[] = [];
 
-  private name: string;
+  readonly #name: string;
 
-  private hdPath: string = hdPathString;
+  #hdPath: string = hdPathString;
 
-  private app?: EthereumApp;
+  #app?: EthereumApp;
 
-  private transport?: Transport;
+  #transport?: Transport;
 
-  private accountDetails: Record<string, AccountDetails> = {};
+  #accountDetails: Record<string, AccountDetails> = {};
 
   constructor(opts: SerializationOptions = {}) {
-    this.name = 'Ledger';
+    this.#name = 'Ledger';
 
+    // eslint-disable-next-line no-void
     void this.deserialize(opts);
   }
 
-  getName = () => this.name;
+  getName = () => this.#name;
 
   // eslint-disable-next-line @typescript-eslint/require-await
   serialize = async (): Promise<SerializationOptions> => ({
-    hdPath: this.hdPath,
+    hdPath: this.#hdPath,
     accounts: this.accounts,
     deviceId: this.deviceId,
-    accountDetails: this.accountDetails,
+    accountDetails: this.#accountDetails,
   });
 
   // eslint-disable-next-line @typescript-eslint/require-await
   deserialize = async (opts: SerializationOptions = {}): Promise<void> => {
-    this.hdPath = opts.hdPath || hdPathString;
-    this.accounts = opts.accounts || [];
-    this.deviceId = opts.deviceId || '';
-    this.accountDetails = opts.accountDetails || {};
+    this.#hdPath = opts.hdPath ?? hdPathString;
+    this.accounts = opts.accounts ?? [];
+    this.deviceId = opts.deviceId ?? '';
+    this.#accountDetails = opts.accountDetails ?? {};
   };
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -129,17 +130,17 @@ export default class LedgerKeyring {
   };
 
   unlock = async (hdPath: string): Promise<string> => {
-    const app = this._getApp();
+    const app = this.#getApp();
     const account = await app.getAddress(hdPath, false, true);
 
     return account.address;
   };
 
-  addAccounts = async (n = 1): Promise<string[]> => {
-    const address = await this.unlock(this.hdPath);
+  addAccounts = async (number = 1): Promise<string[]> => {
+    const address = await this.unlock(this.#hdPath);
 
-    // The current immplemenation of LedgerKeyring only supports one account
-    if (n > 1) {
+    // The current implementation of LedgerKeyring only supports one account
+    if (number > 1) {
       throw new Error('LedgerKeyring only supports one account');
     }
 
@@ -148,17 +149,17 @@ export default class LedgerKeyring {
       return this.getAccounts();
     }
 
-    const checksummedAddress = ethUtil.toChecksumAddress(address);
+    const checksumAddress = ethUtil.toChecksumAddress(address);
     this.accounts.push(address);
-    this.accountDetails[checksummedAddress] = {
+    this.#accountDetails[checksumAddress] = {
       bip44: true,
-      hdPath: this.hdPath,
+      hdPath: this.#hdPath,
     };
 
     return this.getAccounts();
   };
 
-  getDefaultAccount = async (): Promise<string> => {
+  getDefaultAccount = async (): Promise<string | undefined> => {
     let accounts = await this.getAccounts();
 
     if (this.accounts.length === 0) {
@@ -169,8 +170,8 @@ export default class LedgerKeyring {
   };
 
   signTransaction = async (address: string, tx: TypedTransaction) => {
-    const app = this._getApp();
-    const hdPath = this._getHDPathFromAddress(address);
+    const app = this.#getApp();
+    const hdPath = this.#getHDPathFromAddress(address);
 
     // `getMessageToSign` will return valid RLP for all transaction types
     const messageToSign = tx.getMessageToSign(false);
@@ -196,25 +197,23 @@ export default class LedgerKeyring {
     txData.s = ethUtil.addHexPrefix(s);
     // Adopt the 'common' option from the original transaction and set the
     // returned object to be frozen if the original is frozen.
-    const transaction = TransactionFactory.fromTxData(txData, {
+    return TransactionFactory.fromTxData(txData, {
       common: tx.common,
       freeze: Object.isFrozen(tx),
     });
-
-    return transaction;
   };
 
   getAppAndVersion = async (): Promise<{
     appName: string;
     version: string;
   }> => {
-    if (!this.transport) {
+    if (!this.#transport) {
       throw new Error(
         'Ledger transport is not initialized. You must call setTransport first.',
       );
     }
 
-    const response = await this.transport.send(0xb0, 0x01, 0x00, 0x00);
+    const response = await this.#transport.send(0xb0, 0x01, 0x00, 0x00);
 
     let i = 0;
     const format = response[i++];
@@ -223,9 +222,9 @@ export default class LedgerKeyring {
       throw new Error('getAppAndVersion: format not supported');
     }
 
-    const nameLength = response[i++];
+    const nameLength = response[i++] ?? 0;
     const appName = response.slice(i, (i += nameLength)).toString('ascii');
-    const versionLength = response[i++];
+    const versionLength = response[i++] ?? 0;
     const version = response.slice(i, (i += versionLength)).toString('ascii');
 
     return {
@@ -238,10 +237,10 @@ export default class LedgerKeyring {
     this.signPersonalMessage(address, message);
 
   signPersonalMessage = async (address: string, message: string) => {
-    const hdPath = this._getHDPathFromAddress(address);
+    const hdPath = this.#getHDPathFromAddress(address);
     const messageWithoutHexPrefix = ethUtil.stripHexPrefix(message);
 
-    const app = this._getApp();
+    const app = this.#getApp();
     const { r, s, v } = await app.signPersonalMessage(
       hdPath,
       messageWithoutHexPrefix,
@@ -256,7 +255,7 @@ export default class LedgerKeyring {
     const signature = `0x${r}${s}${modifiedV}`;
     const addressSignedWith = recoverPersonalSignature({
       data: message,
-      signature: signature,
+      signature,
     });
 
     if (
@@ -274,7 +273,7 @@ export default class LedgerKeyring {
     data: string,
     { version }: { version: string },
   ) => {
-    const app = this._getApp();
+    const app = this.#getApp();
 
     const isV4 = version === 'V4';
     if (!isV4) {
@@ -301,7 +300,7 @@ export default class LedgerKeyring {
       SignTypedDataVersion.V4,
     ).toString('hex');
 
-    const hdPath = this._getHDPathFromAddress(address);
+    const hdPath = this.#getHDPathFromAddress(address);
     const { r, s, v } = await app.signEIP712HashedMessage(
       hdPath,
       domainSeparatorHex,
@@ -318,7 +317,7 @@ export default class LedgerKeyring {
 
     const addressSignedWith = recoverTypedSignature({
       data: JSON.parse(data) as TypedMessage<MessageTypes>,
-      signature: signature,
+      signature,
       version: SignTypedDataVersion.V4,
     });
     if (
@@ -333,7 +332,7 @@ export default class LedgerKeyring {
 
   forgetDevice = () => {
     this.accounts = [];
-    this.accountDetails = {};
+    this.#accountDetails = {};
     this.deviceId = '';
   };
 
@@ -343,22 +342,22 @@ export default class LedgerKeyring {
     }
 
     this.deviceId = deviceId;
-    this.transport = transport;
-    this.app = new AppEth(transport);
+    this.#transport = transport;
+    this.#app = new AppEth(transport);
   };
 
   setApp = (app: EthereumApp): void => {
-    this.app = app;
+    this.#app = app;
   };
 
-  openEthApp = (): Promise<Buffer> => {
-    if (!this.transport) {
+  openEthApp = async (): Promise<Buffer> => {
+    if (!this.#transport) {
       throw new Error(
         'Ledger transport is not initialized. You must call setTransport first.',
       );
     }
 
-    return this.transport.send(
+    return this.#transport.send(
       0xe0,
       0xd8,
       0x00,
@@ -367,41 +366,42 @@ export default class LedgerKeyring {
     );
   };
 
-  quitApp = (): Promise<Buffer> => {
-    if (!this.transport) {
+  quitApp = async (): Promise<Buffer> => {
+    if (!this.#transport) {
       throw new Error(
         'Ledger transport is not initialized. You must call setTransport first.',
       );
     }
 
-    return this.transport.send(0xb0, 0xa7, 0x00, 0x00);
+    return this.#transport.send(0xb0, 0xa7, 0x00, 0x00);
   };
 
-  private _getApp = (): EthereumApp => {
-    if (!this.app) {
+  readonly #getApp = (): EthereumApp => {
+    if (!this.#app) {
       throw new Error(
         'Ledger app is not initialized. You must call setTransport first.',
       );
     }
 
-    return this.app;
+    return this.#app;
   };
 
-  private _getHDPathFromAddress = (address: string): string => {
+  readonly #getHDPathFromAddress = (address: string): string => {
     const checksummedAddress = ethUtil.toChecksumAddress(address);
 
     // Check if the accountDetails object has the given address
-    if (!this.accountDetails.hasOwnProperty(checksummedAddress)) {
+    // eslint-disable-next-line no-prototype-builtins
+    if (!this.#accountDetails.hasOwnProperty(checksummedAddress)) {
       throw new Error(`Account details not found for address: ${address}`);
     }
 
-    const details = this.accountDetails[checksummedAddress];
+    const details = this.#accountDetails[checksummedAddress];
 
     // Check if hdPath exists in the details for the given address
-    if (!details.hdPath) {
+    if (!details?.hdPath) {
       throw new Error(`HD Path not found for address: ${address}`);
     }
 
-    return details.hdPath;
+    return details?.hdPath;
   };
 }
