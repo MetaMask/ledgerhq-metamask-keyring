@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unassigned-import
-import 'eth-sig-util';
+import '@metamask/eth-sig-util';
 
 declare module 'eth-sig-util' {
   type MessageTypeProperty = {
